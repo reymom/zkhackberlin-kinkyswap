@@ -10,7 +10,8 @@ import "@demox-labs/aleo-wallet-adapter-reactui/dist/styles.css";
 
 export default function Header() {
     const { connected, wallet, wallets, publicKey, requestRecords } = useWallet()
-    const [balance, setBalance] = useState<string | null>(null)
+    const [creditBalance, setCreditBalance] = useState<string | null>(null)
+    const [tokenBalance, setTokenBalance] = useState<string | null>(null)
 
     useEffect(() => {
         console.log("wallets:", wallets)
@@ -18,24 +19,40 @@ export default function Header() {
         console.log("publicKey:", publicKey)
     }, [wallet, wallets, publicKey])
 
-    const fetchBalance = useCallback(async () => {
-        if (connected && requestRecords && publicKey) {
-            const records = await requestRecords("credits.aleo")
-            const unspent = records?.find((r: any) => r.microcredits && !r.spent)
-            if (unspent) {
-                const amount = Number(unspent.microcredits) / 1_000_000 // microcredits to credits
-                setBalance(amount.toFixed(6))
+    const fetchPrivateTokenBalances = useCallback(async () => {
+        if (!connected || !publicKey || !requestRecords) return
+
+        try {
+            const tokenRecords = await requestRecords("token_registry.aleo")
+            console.log("Token Records:", tokenRecords)
+            const TOKEN_ID =
+                "3443843282313283355337459085696902919850365217539366784739393210722344986field"
+            const matching = tokenRecords?.find((r: any) => {
+                const rawTokenId = r["data"]["token_id"]?.toString().split(".")[0];
+                return rawTokenId === TOKEN_ID && !r["spent"];
+            });
+            if (matching) {
+                const amountStr = matching.data.amount?.toString().split("u128")[0];
+                const amount = Number(amountStr) / 1_000_000;
+                setTokenBalance(amount.toFixed(6));
+            } else {
+                setTokenBalance("0.000000")
             }
+        } catch (err) {
+            console.error("Balance fetch error:", err)
+            setCreditBalance(null)
+            setTokenBalance(null)
         }
     }, [connected, requestRecords, publicKey])
 
     useEffect(() => {
         if (connected) {
-            fetchBalance()
+            fetchPrivateTokenBalances()
         } else {
-            setBalance(null)
+            setCreditBalance(null)
+            setTokenBalance(null)
         }
-    }, [connected, fetchBalance])
+    }, [connected, fetchPrivateTokenBalances])
 
     return (
         <header className="border-b border-white/10 backdrop-blur-sm">
@@ -57,9 +74,14 @@ export default function Header() {
             {connected && publicKey && (
                 <div className="text-xs text-gray-400 px-4 py-1 text-right">
                     Connected: <span className="text-white">{publicKey.toString()}</span>
-                    {balance && (
+                    {creditBalance && (
                         <div className="text-teal-300">
-                            Balance: <strong>{balance}</strong> credits
+                            Balance: <strong>{creditBalance}</strong> credits
+                        </div>
+                    )}
+                    {tokenBalance && (
+                        <div className="text-pink-400">
+                            KinkyToken: <strong>{tokenBalance}</strong> KINKY
                         </div>
                     )}
                 </div>

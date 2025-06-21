@@ -12,9 +12,9 @@ import Link from "next/link"
 
 const TOKENS = [
     { symbol: "ALEO", name: "Aleo", color: "text-purple-400" },
-    { symbol: "USDC", name: "USD Coin", color: "text-blue-400" },
-    { symbol: "ETH", name: "Ethereum", color: "text-gray-300" },
-    { symbol: "BTC", name: "Bitcoin", color: "text-orange-400" },
+    { symbol: "KNK", name: "Kinky", color: "text-blue-400" },
+    { symbol: "Aztec", name: "Aztec", color: "text-gray-300" },
+    { symbol: "KNK", name: "Kinky", color: "text-orange-400" },
 ]
 
 export default function CreateOrderPage() {
