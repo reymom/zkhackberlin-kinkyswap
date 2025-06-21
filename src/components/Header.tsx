@@ -3,15 +3,13 @@
 import Link from "next/link"
 import { Wallet } from "lucide-react"
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
-import { DecryptPermission, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base';
 import { useCallback, useEffect, useState } from "react"
 import { WalletMultiButton } from "@demox-labs/aleo-wallet-adapter-reactui";
 
 import "@demox-labs/aleo-wallet-adapter-reactui/dist/styles.css";
 
 export default function Header() {
-    const { connected, connect, wallet, wallets, publicKey, requestRecords } = useWallet()
-    const [walletSelected, setWalletSelected] = useState(false)
+    const { connected, wallet, wallets, publicKey, requestRecords } = useWallet()
     const [balance, setBalance] = useState<string | null>(null)
 
     useEffect(() => {
