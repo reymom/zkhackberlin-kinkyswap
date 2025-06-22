@@ -46,7 +46,7 @@ export default function FulfillOrderPage() {
         return () => workerRef.current?.terminate()
     }, [])
 
-    const fulfillOrder = useCallback(async () => {
+    const onLock = useCallback(async () => {
         if (!order) {
             setMessage("Order data missing — refresh the page.")
             return
@@ -87,37 +87,35 @@ export default function FulfillOrderPage() {
 
         /* ask web-worker for properly formatted inputs */
         workerRef.current!.onmessage = async ({ data }) => {
-            if (data.type !== "createEscrowInputs") return
+            if (data.type !== "inputs") return;
+
             console.log("worker inputs:", data.inputs)
             try {
                 const tx = Transaction.createTransaction(
-                    publicKey,
+                    publicKey!,
                     WalletAdapterNetwork.TestnetBeta,
                     PROGRAM_ID,
-                    "escrow_from_private", // or "escrow_from_public"
+                    data.kind === "escrowPublic"
+                        ? "escrow_from_public"
+                        : "escrow_from_private",
                     data.inputs,
                     1_000_000,
-                    false,
-                )
-                const txId = await requestExecution(tx)
-                console.log("taker lock tx", txId)
-                setMessage(`Submitted. Tx-ID: ${txId.slice(0, 8)}…`)
-                router.push("/orders")
-            } catch (e: unknown) {
-                console.error(e)
-                setMessage((e as any).message ?? "Wallet rejected")
-            } finally {
-                setExecuting(false)
+                    false
+                );
+                const txId = await requestExecution!(tx);
+                setMessage(`Submitted: ${txId.slice(0, 8)}…`);
+            } catch (err) {
+                console.error(err);
+                setMessage((err as Error).message);
             }
         }
 
         workerRef.current?.postMessage({
-            type: "createEscrow",
+            type: "escrowPublic",
             secret: order.secretHash,
             amount: order.amountTo,
-            taker: publicKey,
-            record: knk,
-        })
+            taker: publicKey!,
+        });
     }, [order, publicKey])
 
     if (loading) {
@@ -184,7 +182,7 @@ export default function FulfillOrderPage() {
                         </div>
 
                         <Button
-                            onClick={fulfillOrder}
+                            onClick={onLock}
                             disabled={executing}
                             className="w-full bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white py-3"
                         >
