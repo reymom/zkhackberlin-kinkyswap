@@ -1,34 +1,220 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+"use client"
+
+import { useEffect, useState, useRef, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
+import { ArrowLeft, LucideRecycle, Loader2 } from "lucide-react"
+import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
+import {
+    Card, CardContent, CardDescription, CardHeader, CardTitle,
+} from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { SwapOrder } from "@/types/order"
+import { Transaction, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base"
+
+const networkIcon = (n: "Aleo" | "Aztec") =>
+    n === "Aleo"
+        ? <Image src="/aleo.png" alt="Aleo" width={20} height={20} />
+        : <Image src="/aztec.png" alt="Aztec" width={20} height={20} />
+
+const PROGRAM_ID = "kinky_swap_escrow_v0.aleo"
 
 export default function FulfillOrderPage() {
-    const { id } = useParams();
-    const [order, setOrder] = useState<any>(null);
+    const { id } = useParams<{ id: string }>()
+    const router = useRouter()
+    const [order, setOrder] = useState<SwapOrder | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [executing, setExecuting] = useState(false)
+    const [message, setMessage] = useState<string | null>(null)
+
+    const workerRef = useRef<Worker | null>(null)
+    const { connected, publicKey, requestExecution, requestRecords, requestRecordPlaintexts } = useWallet()
 
     useEffect(() => {
         fetch("/api/orders")
-            .then(res => res.json())
-            .then(data => {
-                const found = data.orders.find((o: any) => o.id === id);
-                setOrder(found);
-            });
-    }, [id]);
+            .then(r => r.json())
+            .then(d => {
+                const found = (d.orders as SwapOrder[]).find(o => o.id === id)
+                setOrder(found ?? null)
+                setLoading(false)
+            })
+    }, [id])
 
-    const fulfillOrder = () => {
-        console.log("fulfilling", order);
-        // workerRef.current?.postMessage(...)
-    };
+    useEffect(() => {
+        workerRef.current = new Worker(new URL("../../worker.ts", import.meta.url))
+        return () => workerRef.current?.terminate()
+    }, [])
 
-    if (!order) return <p>Loading...</p>;
+    const fulfillOrder = useCallback(async () => {
+        if (!order) {
+            setMessage("Order data missing — refresh the page.")
+            return
+        }
+        if (!connected) {
+            setMessage("Connect your Aleo wallet first.")
+            return
+        }
+        if (!publicKey) {
+            setMessage("Wallet connected, but no public key?")
+            return
+        }
+        if (!requestExecution) {
+            setMessage("This wallet cannot sign executions (needs Leo / Nightly).")
+            return
+        }
+        if (!order.secretHash) {
+            setMessage("Maker forgot to attach secretHash — ask them to recreate.")
+            return
+        }
+        setExecuting(true)
+
+        setMessage("Searching for KNK private record…")
+        const KNK_ID =
+            "3443843282313283355337459085696902919850365217539366784739393210722344986field";
+        // const recs = await requestRecords!("token_registry.aleo");
+        // const knk = recs.find((r: any) =>
+        //     r.data.token_id.toString().split(".")[0] === KNK_ID && !r.spent
+        // );
+        // if (!knk) {
+        //     setMessage("No unspent private KNK record found.");
+        //     setExecuting(false);
+        //     return;
+        // }
+        // console.log("found KNK record:", knk);
+        // console.log("knk keys:", Object.keys(knk));
+
+        const plains = await requestRecordPlaintexts!("token_registry.aleo");
+        const literal = plains.find((p: string) =>
+            p.includes(KNK_ID) && p.includes("u128.private") && !p.includes("spent:")
+        );
+
+        if (!literal) {
+            setMessage("No unspent KNK plaintext record in wallet.");
+            setExecuting(false);
+            return;
+        }
+
+        console.log("using record literal:", literal);
+
+        setMessage("Building transaction…")
+
+        /* ask web-worker for properly formatted inputs */
+        workerRef.current!.onmessage = async ({ data }) => {
+            if (data.type !== "createEscrowInputs") return
+            console.log("worker inputs:", data.inputs)
+            try {
+                const tx = Transaction.createTransaction(
+                    publicKey,
+                    WalletAdapterNetwork.TestnetBeta,
+                    PROGRAM_ID,
+                    "escrow_from_private", // or "escrow_from_public"
+                    data.inputs,
+                    1_000_000,
+                    false,
+                )
+                const txId = await requestExecution(tx)
+                console.log("taker lock tx", txId)
+                setMessage(`Submitted. Tx-ID: ${txId.slice(0, 8)}…`)
+                router.push("/orders")
+            } catch (e: unknown) {
+                console.error(e)
+                setMessage((e as any).message ?? "Wallet rejected")
+            } finally {
+                setExecuting(false)
+            }
+        }
+
+        workerRef.current?.postMessage({
+            type: "createEscrow",
+            secret: order.secretHash,
+            amount: order.amountTo,
+            taker: publicKey,
+            record: literal,
+        })
+    }, [order, publicKey])
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="animate-spin h-8 w-8 text-purple-400" />
+            </div>
+        )
+    }
+
+    if (!order) {
+        return (
+            <div className="text-center mt-32 text-gray-300">
+                Order not found.
+            </div>
+        )
+    }
 
     return (
-        <main style={{ padding: "2rem" }}>
-            <h1>Fulfill Order</h1>
-            <p>
-                Swap {order.amountA} {order.tokenA} → {order.amountB} {order.tokenB}
-            </p>
-            <button onClick={fulfillOrder}>Execute Escrow</button>
+        <main className="container mx-auto px-4 py-16">
+            <div className="max-w-xl mx-auto">
+                <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                    <CardHeader className="flex flex-col gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.back()}
+                            className="self-start text-white hover:text-purple-400"
+                        >
+                            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                        </Button>
+
+                        <CardTitle className="text-white flex items-center gap-2">
+                            Fulfill Swap #{order.id.slice(0, 8)}
+                            <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30">
+                                Active
+                            </Badge>
+                        </CardTitle>
+                        <CardDescription className="text-gray-300">
+                            Lock {order.amountTo} {order.tokenTo} on {order.networkTo} to receive {order.amountFrom} {order.tokenFrom} on {order.networkFrom}
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="space-y-6">
+                        {/* amounts */}
+                        <div className="flex items-center justify-between">
+                            <div className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                    {networkIcon(order.networkFrom)}
+                                    <span className="text-3xl font-bold text-white">{order.amountFrom}</span>
+                                </div>
+                                <p className="text-sm text-blue-400">{order.tokenFrom}</p>
+                            </div>
+
+                            <LucideRecycle className="h-6 w-6 text-gray-400" />
+
+                            <div className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                    {networkIcon(order.networkTo)}
+                                    <span className="text-3xl font-bold text-white">{order.amountTo}</span>
+                                </div>
+                                <p className="text-sm text-blue-400">{order.tokenTo}</p>
+                            </div>
+                        </div>
+
+                        <Button
+                            onClick={fulfillOrder}
+                            disabled={executing}
+                            className="w-full bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white py-3"
+                        >
+                            {executing ? (
+                                <Loader2 className="animate-spin h-5 w-5" />
+                            ) : (
+                                "Execute Escrow"
+                            )}
+                        </Button>
+
+                        {message && (
+                            <p className="text-sm text-center text-red-400">{message}</p>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </main>
-    );
+    )
 }
