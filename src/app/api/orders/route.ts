@@ -1,12 +1,40 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
+import { SwapOrder } from "@/types/order";
 
 const ORDERBOOK_KEY = "orderbook";
 
 export async function POST(req: Request) {
   const body = await req.json();
+  const {
+    networkFrom,
+    tokenFrom,
+    amountFrom,
+    networkTo,
+    tokenTo,
+    amountTo,
+    secretHash,
+    maker = null,
+  } = body;
+
+  if (![networkFrom, networkTo].every((n) => n === "Aleo" || n === "Aztec"))
+    return NextResponse.json(
+      { success: false, error: "Invalid network" },
+      { status: 400 }
+    );
   const id = crypto.randomUUID();
-  const order = { id, ...body, timestamp: Date.now() };
+  const order: SwapOrder = {
+    id,
+    networkFrom,
+    tokenFrom,
+    amountFrom,
+    networkTo,
+    tokenTo,
+    amountTo,
+    secretHash,
+    maker,
+    timestamp: Date.now(),
+  };
 
   const client = await redis;
   await client.rPush(ORDERBOOK_KEY, JSON.stringify(order));
