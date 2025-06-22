@@ -6,7 +6,7 @@ import { WalletModalProvider } from "@demox-labs/aleo-wallet-adapter-reactui"
 import { LeoWalletAdapter } from "aleo-adapters"
 import { DecryptPermission, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base"
 
-export default function ClientWalletProvider({ children }: { children: React.ReactNode }) {
+export default function AleoClientWalletProvider({ children }: { children: React.ReactNode }) {
     const wallets = useMemo(() => [new LeoWalletAdapter({ appName: "FusiSwap" })], [])
 
     return (

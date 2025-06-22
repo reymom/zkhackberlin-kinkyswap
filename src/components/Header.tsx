@@ -3,9 +3,10 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect } from "react"
 import { WalletMultiButton } from "@demox-labs/aleo-wallet-adapter-reactui";
 import { DecryptPermission } from "@demox-labs/aleo-wallet-adapter-base"
+import AztecConnectButton from "./AztecConnectButton"
 
 export default function Header() {
     const { connected, wallet, wallets, publicKey, requestRecords } = useWallet()
@@ -68,7 +69,16 @@ export default function Header() {
                     <Link href="/orders" className="text-gray-300 hover:text-white transition-colors cursor-pointer">
                         Browse Orders
                     </Link>
-                    <WalletMultiButton className="cursor-pointer" decryptPermission={DecryptPermission.AutoDecrypt} />
+                    <WalletMultiButton className={`
+                        wallet-adapter-button wallet-adapter-button-trigger
+                        flex items-center gap-2 font-medium cursor-pointer
+                        text-white ${connected
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        }`} decryptPermission={DecryptPermission.AutoDecrypt} >
+                        {connected && publicKey ? `${publicKey.slice(0, 6)}…${publicKey.slice(-4)}` : "Connect Aleo"}
+                    </WalletMultiButton>
+                    <AztecConnectButton />
                 </nav>
             </div>
         </header>

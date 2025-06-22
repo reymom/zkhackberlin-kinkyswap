@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aztec/aztec.js": "^0.87.9",
     "@demox-labs/aleo-wallet-adapter-base": "^0.0.23",
     "@demox-labs/aleo-wallet-adapter-leo": "^0.0.25",
     "@demox-labs/aleo-wallet-adapter-react": "^0.0.22",
@@ -17,6 +18,7 @@
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
+    "@shieldswap/wallet-sdk": "^0.84.0-next.0",
     "aleo-adapters": "^1.2.1",
     "circomlibjs": "^0.1.7",
     "class-variance-authority": "^0.7.0",
