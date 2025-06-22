@@ -22,6 +22,7 @@ export default function CreateOrderPage() {
     const [tokenTo, setTokenTo] = useState("KNK");
     const [amountTo, setAmountTo] = useState("");
 
+    const [depositKind, setDepositKind] = useState<"private" | "public">("private");
     const [isCreating, setIsCreating] = useState(false)
     const router = useRouter()
 
@@ -37,9 +38,14 @@ export default function CreateOrderPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    networkFrom, tokenFrom, amountFrom,
-                    networkTo, tokenTo, amountTo,
+                    networkFrom,
+                    tokenFrom,
+                    amountFrom,
+                    networkTo,
+                    tokenTo,
+                    amountTo,
                     secretHash,
+                    depositKind,
                 }),
             })
             const { order } = await res.json()
@@ -72,6 +78,26 @@ export default function CreateOrderPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        <div className="flex gap-4 mb-4">
+                            <label className="flex items-center gap-1 text-sm text-gray-300">
+                                <input
+                                    type="radio"
+                                    value="private"
+                                    checked={depositKind === "private"}
+                                    onChange={() => setDepositKind("private")}
+                                />
+                                Private record
+                            </label>
+                            <label className="flex items-center gap-1 text-sm text-gray-300">
+                                <input
+                                    type="radio"
+                                    value="public"
+                                    checked={depositKind === "public"}
+                                    onChange={() => setDepositKind("public")}
+                                />
+                                Public balance
+                            </label>
+                        </div>
                         {/* From Token */}
                         <section className="space-y-2">
                             <Label className="text-white">You're offering</Label>

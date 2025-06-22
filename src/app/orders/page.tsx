@@ -31,6 +31,13 @@ export default function OrdersPage() {
       ? <Image src="/aleo.png" alt="Aleo" width={20} height={20} />
       : <Image src="/aztec.png" alt="Aztec" width={20} height={20} />
 
+  const kindBadge = (k: "public" | "private") =>
+    k === "public" ? (
+      <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30">Public</Badge>
+    ) : (
+      <Badge className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">Private</Badge>
+    );
+
   return (
     <main className="container mx-auto px-4 py-16">
       <div className="max-w-4xl mx-auto">
@@ -70,9 +77,12 @@ export default function OrdersPage() {
                       <Coins className="h-5 w-5 text-purple-400" />
                       Swap #{o.id.slice(0, 8)}
                     </CardTitle>
-                    <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30">
-                      Active
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {kindBadge(o.depositKind as "public" | "private")}
+                      <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30">
+                        Active
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
 

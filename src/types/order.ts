@@ -7,6 +7,7 @@ export interface SwapOrder {
   tokenTo: string;
   amountTo: string;
   secretHash: string;
+  depositKind: "private" | "public";
   maker: string | null;
   timestamp: number;
 }

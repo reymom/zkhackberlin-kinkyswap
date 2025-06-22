@@ -20,6 +20,12 @@ const networkIcon = (n: "Aleo" | "Aztec") =>
 
 const PROGRAM_ID = "kinky_swap_escrow_v0.aleo"
 
+const toLiteral = (rec: any) => {
+    if (!rec) return "";
+    if (typeof rec.toString === "function") return rec.toString();
+    return JSON.stringify(rec);
+}
+
 export default function FulfillOrderPage() {
     const { id } = useParams<{ id: string }>()
     const router = useRouter()
@@ -47,76 +53,111 @@ export default function FulfillOrderPage() {
     }, [])
 
     const onLock = useCallback(async () => {
-        if (!order) {
-            setMessage("Order data missing — refresh the page.")
-            return
-        }
-        if (!connected) {
-            setMessage("Connect your Aleo wallet first.")
-            return
-        }
-        if (!publicKey) {
-            setMessage("Wallet connected, but no public key?")
-            return
-        }
+        if (!order) return setMessage("Order data missing.");
+        if (!connected) return setMessage("Connect your Aleo wallet.");
+        if (!publicKey) return setMessage("Wallet connected, no public key?");
         if (!requestExecution) {
-            setMessage("This wallet cannot sign executions (needs Leo / Nightly).")
-            return
+            return setMessage("Wallet lacks execution capability.");
         }
-        if (!order.secretHash) {
-            setMessage("Maker forgot to attach secretHash — ask them to recreate.")
-            return
-        }
+        const isPublic =
+            (order.depositKind ?? "public").trim().toLowerCase() === "public";
+
         setExecuting(true)
 
-        setMessage("Searching for KNK private record…")
-        const KNK_ID =
-            "3443843282313283355337459085696902919850365217539366784739393210722344986field";
-        const recs = await requestRecords!("token_registry.aleo");
-        console.log("found records:", recs, "records");
-        const knk = recs.find((r: any) =>
-            r.data.token_id.toString().split(".")[0] === KNK_ID && !r.spent
-        );
-        if (!knk) {
-            setMessage("No unspent private KNK record found.");
-            setExecuting(false);
-            return;
+        /* ------- If PRIVATE deposit, grab a record first ------- */
+        let literal = "";
+        if (!isPublic) {
+            setMessage("Searching for KNK private record…");
+            const KNK_ID =
+                "3443843282313283355337459085696902919850365217539366784739393210722344986field";
+            const recs = await requestRecords!("token_registry.aleo");
+            console.log("found records:", recs, "records");
+            const knk = recs.find(
+                (r: any) => r.data.token_id.toString().split(".")[0] === KNK_ID && !r.spent,
+            );
+            if (!knk) {
+                setExecuting(false);
+                return setMessage("No unspent private KNK record.");
+            }
+            literal = toLiteral(knk);
         }
 
-        setMessage("Building transaction…")
-
-        /* ask web-worker for properly formatted inputs */
+        /* ------- Wire worker <-> wallet execution ------- */
         workerRef.current!.onmessage = async ({ data }) => {
             if (data.type !== "inputs") return;
-
-            console.log("worker inputs:", data.inputs)
             try {
+                /* Approve transaction */
+                if (data.kind === "approvePublic") {
+                    const tx = Transaction.createTransaction(
+                        publicKey!,
+                        WalletAdapterNetwork.TestnetBeta,
+                        "token_registry.aleo",
+                        "approve_public",
+                        data.inputs,
+                        1_000_000,
+                        false,
+                    );
+                    await requestExecution!(tx);
+                    setMessage("Approve tx sent. Waiting 20 s…");
+
+                    /* fire escrow build after a short delay */
+                    setTimeout(() => {
+                        workerRef.current?.postMessage({
+                            type: "escrowPublic",
+                            secret: order.secretHash!,
+                            amount: order.amountTo,
+                            taker: publicKey!,
+                        });
+                    }, 20_000);
+                    return;
+                }
+
+                /* Escrow transaction (public OR private) */
+                const fn =
+                    data.kind === "escrowPublic" ? "escrow_from_public" : "escrow_from_private";
+
                 const tx = Transaction.createTransaction(
                     publicKey!,
                     WalletAdapterNetwork.TestnetBeta,
                     PROGRAM_ID,
-                    data.kind === "escrowPublic"
-                        ? "escrow_from_public"
-                        : "escrow_from_private",
+                    fn,
                     data.inputs,
                     1_000_000,
-                    false
+                    false,
                 );
                 const txId = await requestExecution!(tx);
                 setMessage(`Submitted: ${txId.slice(0, 8)}…`);
+                setExecuting(false);
             } catch (err) {
                 console.error(err);
                 setMessage((err as Error).message);
+                setExecuting(false);
             }
-        }
+        };
 
-        workerRef.current?.postMessage({
-            type: "escrowPublic",
-            secret: order.secretHash,
-            amount: order.amountTo,
-            taker: publicKey!,
-        });
-    }, [order, publicKey])
+        /* ------- Kick-off worker -------- */
+        if (isPublic) {
+            workerRef.current?.postMessage({
+                type: "approvePublic",
+                amount: order.amountTo,
+            });
+        } else {
+            workerRef.current?.postMessage({
+                type: "escrowPrivate",
+                secret: order.secretHash!,
+                amount: order.amountTo,
+                taker: publicKey!,
+                literal,
+            });
+        }
+    }, [order, publicKey, connected]);
+
+    const kindBadge = (k: "public" | "private") =>
+        k === "public" ? (
+            <Badge className="bg-blue-600/20 text-blue-400 border-blue-600/30">Public</Badge>
+        ) : (
+            <Badge className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">Private</Badge>
+        );
 
     if (loading) {
         return (
@@ -150,9 +191,12 @@ export default function FulfillOrderPage() {
 
                         <CardTitle className="text-white flex items-center gap-2">
                             Fulfill Swap #{order.id.slice(0, 8)}
-                            <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30">
-                                Active
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                                {kindBadge(order.depositKind as "public" | "private")}
+                                <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30">
+                                    Active
+                                </Badge>
+                            </div>
                         </CardTitle>
                         <CardDescription className="text-gray-300">
                             Lock {order.amountTo} {order.tokenTo} on {order.networkTo} to receive {order.amountFrom} {order.tokenFrom} on {order.networkFrom}

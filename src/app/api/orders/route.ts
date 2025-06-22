@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     tokenTo,
     amountTo,
     secretHash,
+    depositKind,
     maker = null,
   } = body;
 
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
     tokenTo,
     amountTo,
     secretHash,
+    depositKind,
     maker,
     timestamp: Date.now(),
   };
