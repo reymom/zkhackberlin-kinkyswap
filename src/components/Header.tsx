@@ -1,12 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { Wallet } from "lucide-react"
+import Image from "next/image"
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
 import { useCallback, useEffect, useState } from "react"
 import { WalletMultiButton } from "@demox-labs/aleo-wallet-adapter-reactui";
-
-import "@demox-labs/aleo-wallet-adapter-reactui/dist/styles.css";
 
 export default function Header() {
     const { connected, wallet, wallets, publicKey, requestRecords } = useWallet()
@@ -55,25 +53,34 @@ export default function Header() {
     }, [connected, fetchPrivateTokenBalances])
 
     return (
-        <header className="border-b border-white/10 backdrop-blur-sm">
+        <header className="border-b border-white/10 backdrop-blur-sm z-10">
             <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <Wallet className="text-purple-400 h-6 w-6" />
-                    <span className="text-lg font-semibold text-white">KinkySwap</span>
+                <div className="flex items-center gap-2 cursor-pointer">
+                    <Image
+                        src="/logo.png"
+                        alt="KinkySwap Logo"
+                        width={32}
+                        height={32}
+                        className="h-10 w-10"
+                        priority
+                    />
+                    <span className="text-4xl font-semibold text-white">KinkySwap</span>
                 </div>
                 <nav className="flex gap-6 items-center text-sm">
-                    <Link href="/create" className="text-gray-300 hover:text-white transition">
+                    <Link
+                        href="/create"
+                        className="text-gray-300 hover:text-white transition-colors cursor-pointer"
+                    >
                         Create Order
                     </Link>
-                    <Link href="/orders" className="text-gray-300 hover:text-white transition">
+                    <Link href="/orders" className="text-gray-300 hover:text-white transition-colors cursor-pointer">
                         Browse Orders
                     </Link>
-                    <WalletMultiButton />
+                    <WalletMultiButton className="cursor-pointer" />
                 </nav>
             </div>
             {connected && publicKey && (
-                <div className="text-xs text-gray-400 px-4 py-1 text-right">
-                    Connected: <span className="text-white">{publicKey.toString()}</span>
+                <div className="text-xs text-gray-400 px-2 py-1 text-right">
                     {creditBalance && (
                         <div className="text-teal-300">
                             Balance: <strong>{creditBalance}</strong> credits
