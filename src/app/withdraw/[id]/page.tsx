@@ -73,7 +73,7 @@ export default function WithdrawPage() {
         if (!connected || !publicKey || !requestExecution) {
             setMsg("connect wallet first"); return;
         }
-        /* 👇 your UI should only enable this AFTER t1 has passed! */
+
         setBusy(true); setMsg("building refund…");
 
         worker.current!.onmessage = async ({ data }) => {
@@ -103,7 +103,6 @@ export default function WithdrawPage() {
         });
     }, [order, connected, publicKey]);
 
-    /* ──────────  trivial UI  ─────────── */
     if (!order) return <p className="p-8 text-gray-400">loading…</p>;
 
     return (
