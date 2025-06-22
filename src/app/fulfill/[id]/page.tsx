@@ -29,7 +29,7 @@ export default function FulfillOrderPage() {
     const [message, setMessage] = useState<string | null>(null)
 
     const workerRef = useRef<Worker | null>(null)
-    const { connected, publicKey, requestExecution, requestRecords, requestRecordPlaintexts } = useWallet()
+    const { connected, publicKey, requestExecution, requestRecords } = useWallet()
 
     useEffect(() => {
         fetch("/api/orders")
@@ -72,30 +72,16 @@ export default function FulfillOrderPage() {
         setMessage("Searching for KNK private record…")
         const KNK_ID =
             "3443843282313283355337459085696902919850365217539366784739393210722344986field";
-        // const recs = await requestRecords!("token_registry.aleo");
-        // const knk = recs.find((r: any) =>
-        //     r.data.token_id.toString().split(".")[0] === KNK_ID && !r.spent
-        // );
-        // if (!knk) {
-        //     setMessage("No unspent private KNK record found.");
-        //     setExecuting(false);
-        //     return;
-        // }
-        // console.log("found KNK record:", knk);
-        // console.log("knk keys:", Object.keys(knk));
-
-        const plains = await requestRecordPlaintexts!("token_registry.aleo");
-        const literal = plains.find((p: string) =>
-            p.includes(KNK_ID) && p.includes("u128.private") && !p.includes("spent:")
+        const recs = await requestRecords!("token_registry.aleo");
+        console.log("found records:", recs, "records");
+        const knk = recs.find((r: any) =>
+            r.data.token_id.toString().split(".")[0] === KNK_ID && !r.spent
         );
-
-        if (!literal) {
-            setMessage("No unspent KNK plaintext record in wallet.");
+        if (!knk) {
+            setMessage("No unspent private KNK record found.");
             setExecuting(false);
             return;
         }
-
-        console.log("using record literal:", literal);
 
         setMessage("Building transaction…")
 
@@ -130,7 +116,7 @@ export default function FulfillOrderPage() {
             secret: order.secretHash,
             amount: order.amountTo,
             taker: publicKey,
-            record: literal,
+            record: knk,
         })
     }, [order, publicKey])
 

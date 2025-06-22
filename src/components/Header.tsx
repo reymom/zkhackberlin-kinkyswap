@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
 import { useCallback, useEffect, useState } from "react"
 import { WalletMultiButton } from "@demox-labs/aleo-wallet-adapter-reactui";
+import { DecryptPermission } from "@demox-labs/aleo-wallet-adapter-base"
 
 export default function Header() {
     const { connected, wallet, wallets, publicKey, requestRecords } = useWallet()
@@ -76,7 +77,7 @@ export default function Header() {
                     <Link href="/orders" className="text-gray-300 hover:text-white transition-colors cursor-pointer">
                         Browse Orders
                     </Link>
-                    <WalletMultiButton className="cursor-pointer" />
+                    <WalletMultiButton className="cursor-pointer" decryptPermission={DecryptPermission.AutoDecrypt} />
                 </nav>
             </div>
             {connected && publicKey && (
