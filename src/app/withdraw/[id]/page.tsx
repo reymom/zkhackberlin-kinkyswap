@@ -28,7 +28,7 @@ export default function WithdrawPage() {
 
     /* ──────────  spawn worker once  ──── */
     useEffect(() => {
-        worker.current = new Worker(new URL("../../../zkEscrowWorker.ts", import.meta.url));
+        worker.current = new Worker(new URL("../../worker.ts", import.meta.url));
         return () => worker.current?.terminate();
     }, []);
 
