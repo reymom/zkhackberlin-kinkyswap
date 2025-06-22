@@ -1,14 +1,15 @@
 import React from "react"
-import type Metadata from "next"
+import type { Metadata } from "next"
 
 import Header from "@/components/Header"
+import BackgroundFX from "@/components/BackgroundFX"
 import ClientWalletProvider from "@/components/ClientWalletProvider"
 
-import "@demox-labs/aleo-wallet-adapter-reactui/styles.css"
 import "./globals.css"
+import "@demox-labs/aleo-wallet-adapter-reactui/styles.css"
 
 export const metadata: Metadata = {
-  title: "Kiky Swap - Decentralized Token Swaps",
+  title: "Kinky Swap - Decentralized Token Swaps",
   description: "Create and fulfill token swap orders from Aleo to Aztec",
 }
 
@@ -19,7 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 antialiased">
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <BackgroundFX />
         <ClientWalletProvider>
           <Header />
           {children}
