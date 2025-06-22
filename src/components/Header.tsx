@@ -9,8 +9,6 @@ import { DecryptPermission } from "@demox-labs/aleo-wallet-adapter-base"
 
 export default function Header() {
     const { connected, wallet, wallets, publicKey, requestRecords } = useWallet()
-    const [creditBalance, setCreditBalance] = useState<string | null>(null)
-    const [tokenBalance, setTokenBalance] = useState<string | null>(null)
 
     useEffect(() => {
         console.log("wallets:", wallets)
@@ -33,23 +31,16 @@ export default function Header() {
             if (matching) {
                 const amountStr = matching.data.amount?.toString().split("u128")[0];
                 const amount = Number(amountStr) / 1_000_000;
-                setTokenBalance(amount.toFixed(6));
-            } else {
-                setTokenBalance("0.000000")
+                console.log("KinkyToken Private Balance:", amount.toFixed(6));
             }
         } catch (err) {
             console.error("Balance fetch error:", err)
-            setCreditBalance(null)
-            setTokenBalance(null)
         }
     }, [connected, requestRecords, publicKey])
 
     useEffect(() => {
         if (connected) {
             fetchPrivateTokenBalances()
-        } else {
-            setCreditBalance(null)
-            setTokenBalance(null)
         }
     }, [connected, fetchPrivateTokenBalances])
 
@@ -80,20 +71,6 @@ export default function Header() {
                     <WalletMultiButton className="cursor-pointer" decryptPermission={DecryptPermission.AutoDecrypt} />
                 </nav>
             </div>
-            {connected && publicKey && (
-                <div className="text-xs text-gray-400 px-2 py-1 text-right">
-                    {creditBalance && (
-                        <div className="text-teal-300">
-                            Balance: <strong>{creditBalance}</strong> credits
-                        </div>
-                    )}
-                    {tokenBalance && (
-                        <div className="text-pink-400">
-                            KinkyToken: <strong>{tokenBalance}</strong> KINKY
-                        </div>
-                    )}
-                </div>
-            )}
         </header>
     )
 }
